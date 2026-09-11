@@ -3,7 +3,13 @@
   "displayName": "Integrated Browser Auto Reload",
   "description": "Automatically reloads the integrated browser on file save with configurable file extensions and exclude patterns.",
   "version": "1.0.0",
-  "publisher": "local",
+  "publisher": "rahmatardianto",
+  "icon": "images/icon.png",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rahmatardianto/integrated-browser-auto-reload"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
