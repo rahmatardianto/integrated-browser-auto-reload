@@ -86,3 +86,67 @@ test('ConfigManager handles dynamic real-time config updates without restart', (
   assert.strictEqual(config.isMatch('/path/to/file.vue'), true);
   assert.strictEqual(config.isMatch('/path/to/welcome.blade.php'), true);
 });
+
+test('ConfigManager.isMatch handles paths without leading slashes against glob exclude patterns', () => {
+  const config = new ConfigManager(undefined, undefined, {
+    fileExtensions: ['php', 'js'],
+    excludePatterns: ['**/vendor/**', '**/storage/**', '**/.git/**']
+  });
+
+  assert.strictEqual(config.isMatch('storage/framework/views.php'), false);
+  assert.strictEqual(config.isMatch('vendor/autoload.php'), false);
+  assert.strictEqual(config.isMatch('app/Http/Controllers/UserController.php'), true);
+});
+
+test('BrowserController executes webview and browser reload commands and handles split groups', async () => {
+  const { BrowserController } = require('../out/browserController');
+  const executedCommands = [];
+  let shownDocument = null;
+
+  class FakeTabInputText {}
+  class FakeTabInputWebview {}
+
+  const mockTabGroups = {
+    activeTabGroup: { viewColumn: 1 },
+    all: [
+      {
+        viewColumn: 1,
+        activeTab: { input: new FakeTabInputText() }
+      },
+      {
+        viewColumn: 2,
+        activeTab: { input: new FakeTabInputWebview() }
+      }
+    ]
+  };
+
+  const mockVscode = {
+    TabInputText: FakeTabInputText,
+    TabInputTextDiff: class {},
+    window: {
+      tabGroups: mockTabGroups,
+      activeTextEditor: {
+        document: { fileName: '/path/to/index.html' },
+        viewColumn: 1
+      },
+      showTextDocument: async (doc, opts) => {
+        shownDocument = { doc, opts };
+      }
+    },
+    commands: {
+      executeCommand: async (cmd) => {
+        executedCommands.push(cmd);
+      }
+    }
+  };
+
+  const controller = new BrowserController(undefined, mockVscode);
+  await controller.doReload();
+
+  assert.ok(executedCommands.includes('workbench.action.webview.reloadWebviewAction'));
+  assert.ok(executedCommands.includes('workbench.action.focusSecondEditorGroup'));
+  assert.ok(executedCommands.includes('workbench.action.browser.reload'));
+  assert.strictEqual(shownDocument?.doc.fileName, '/path/to/index.html');
+});
+
+

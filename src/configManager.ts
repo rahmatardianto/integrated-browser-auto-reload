@@ -84,7 +84,10 @@ export class ConfigManager {
       return false;
     }
 
-    const normalizedPath = filePath.replace(/\\/g, '/');
+    let normalizedPath = filePath.replace(/\\/g, '/');
+    if (this.vscodeApi?.workspace?.asRelativePath) {
+      normalizedPath = this.vscodeApi.workspace.asRelativePath(filePath, false).replace(/\\/g, '/');
+    }
 
     // 1. Exclude pattern check (higher priority)
     for (const pattern of this.excludePatterns) {
@@ -104,13 +107,15 @@ export class ConfigManager {
       return false;
     }
 
+    const pathWithSlash = normalizedPath.startsWith('/') ? normalizedPath : '/' + normalizedPath;
+
     if (p.includes('*') || p.includes('?')) {
       const regexStr = p
         .replace(/[.+^${}()|[\]]/g, '\\$&')
         .replace(/\*\*/g, '.*')
         .replace(/(?<!\.)\*/g, '[^/]*')
         .replace(/\?/g, '[^/]');
-      return new RegExp(regexStr, 'i').test(normalizedPath);
+      return new RegExp(regexStr, 'i').test(pathWithSlash);
     }
 
     const clean = p.replace(/^\/+|\/+$/g, '');

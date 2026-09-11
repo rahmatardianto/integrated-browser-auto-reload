@@ -18,7 +18,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const reloadCommand = vscode.commands.registerCommand(
     'integratedBrowserAutoReload.reload',
     () => {
-      browserController.triggerReload();
+      browserController.doReload();
     }
   );
 
