@@ -98,7 +98,7 @@ test('ConfigManager.isMatch handles paths without leading slashes against glob e
   assert.strictEqual(config.isMatch('app/Http/Controllers/UserController.php'), true);
 });
 
-test('BrowserController executes webview and browser reload commands and handles split groups', async () => {
+test('BrowserController executes webview and browser reload commands and restores split group focus without scrolling', async () => {
   const { BrowserController } = require('../out/browserController');
   const executedCommands = [];
   let shownDocument = null;
@@ -146,7 +146,56 @@ test('BrowserController executes webview and browser reload commands and handles
   assert.ok(executedCommands.includes('workbench.action.webview.reloadWebviewAction'));
   assert.ok(executedCommands.includes('workbench.action.focusSecondEditorGroup'));
   assert.ok(executedCommands.includes('workbench.action.browser.reload'));
-  assert.strictEqual(shownDocument?.doc.fileName, '/path/to/index.html');
+  assert.ok(executedCommands.includes('workbench.action.focusFirstEditorGroup'));
+  assert.strictEqual(shownDocument, null, 'showTextDocument should not be called to avoid auto-scrolling');
 });
+
+test('BrowserController reloads browser in single group layout without modifying editor window state', async () => {
+  const { BrowserController } = require('../out/browserController');
+  const executedCommands = [];
+  let shownDocument = null;
+
+  class FakeTabInputText {}
+
+  const mockTabGroups = {
+    activeTabGroup: { viewColumn: 1 },
+    all: [
+      {
+        viewColumn: 1,
+        activeTab: { input: new FakeTabInputText() }
+      }
+    ]
+  };
+
+  const mockVscode = {
+    TabInputText: FakeTabInputText,
+    TabInputTextDiff: class {},
+    window: {
+      tabGroups: mockTabGroups,
+      activeTextEditor: {
+        document: { fileName: '/path/to/app.js' },
+        viewColumn: 1,
+        selection: { start: 10, end: 10 }
+      },
+      showTextDocument: async (doc, opts) => {
+        shownDocument = { doc, opts };
+      }
+    },
+    commands: {
+      executeCommand: async (cmd) => {
+        executedCommands.push(cmd);
+      }
+    }
+  };
+
+  const controller = new BrowserController(undefined, mockVscode);
+  await controller.doReload();
+
+  assert.ok(executedCommands.includes('workbench.action.browser.reload'));
+  assert.strictEqual(executedCommands.includes('workbench.action.focusFirstEditorGroup'), false);
+  assert.strictEqual(shownDocument, null, 'showTextDocument should not be called to avoid auto-scrolling');
+});
+
+
 
 

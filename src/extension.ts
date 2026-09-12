@@ -12,7 +12,7 @@ export function activate(context: vscode.ExtensionContext): void {
       return;
     }
     outputChannel.appendLine(`[AutoReload] Triggering reload for: ${document.fileName}`);
-    browserController.triggerReload();
+    browserController.triggerReload(document);
   });
 
   const reloadCommand = vscode.commands.registerCommand(

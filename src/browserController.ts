@@ -30,7 +30,7 @@ export class BrowserController {
     }
   }
 
-  public triggerReload(): void {
+  public triggerReload(_document?: vscode.TextDocument): void {
     if (this.reloadTimer) {
       clearTimeout(this.reloadTimer);
     }
@@ -46,6 +46,8 @@ export class BrowserController {
       return;
     }
 
+    const originalGroupViewColumn = this.vscodeApi.window.tabGroups?.activeTabGroup?.viewColumn;
+
     // 1. Reload webview-based previews (Simple Browser, Live Preview, etc.)
     try {
       await this.vscodeApi.commands.executeCommand('workbench.action.webview.reloadWebviewAction');
@@ -55,24 +57,23 @@ export class BrowserController {
 
     // 2. Reload VS Code Integrated Browser (BrowserView)
     try {
-      await this.reloadIntegratedBrowser();
+      await this.reloadIntegratedBrowser(originalGroupViewColumn);
     } catch (error) {
       this.outputChannel?.appendLine(`[BrowserController] Integrated browser reload failed: ${error}`);
     }
   }
 
-  private async reloadIntegratedBrowser(): Promise<void> {
+  private async reloadIntegratedBrowser(originalGroupViewColumn?: number): Promise<void> {
     if (!this.vscodeApi) {
       return;
     }
 
     const tabGroups = this.vscodeApi.window.tabGroups;
-    const activeTextEditor = this.vscodeApi.window.activeTextEditor;
-
     let targetGroup: vscode.TabGroup | undefined;
+
     if (tabGroups) {
       for (const group of tabGroups.all) {
-        if (group === tabGroups.activeTabGroup) {
+        if (originalGroupViewColumn !== undefined && group.viewColumn === originalGroupViewColumn) {
           continue;
         }
         const activeTab = group.activeTab;
@@ -94,17 +95,13 @@ export class BrowserController {
     ) {
       await this.vscodeApi.commands.executeCommand(FOCUS_GROUP_COMMANDS[targetGroup.viewColumn - 1]);
       await this.vscodeApi.commands.executeCommand('workbench.action.browser.reload');
-      if (activeTextEditor) {
-        await this.vscodeApi.window.showTextDocument(activeTextEditor.document, {
-          viewColumn: activeTextEditor.viewColumn,
-          preserveFocus: false,
-        });
-      } else if (
-        tabGroups?.activeTabGroup &&
-        tabGroups.activeTabGroup.viewColumn <= FOCUS_GROUP_COMMANDS.length
+      if (
+        originalGroupViewColumn &&
+        originalGroupViewColumn >= 1 &&
+        originalGroupViewColumn <= FOCUS_GROUP_COMMANDS.length
       ) {
         await this.vscodeApi.commands.executeCommand(
-          FOCUS_GROUP_COMMANDS[tabGroups.activeTabGroup.viewColumn - 1]
+          FOCUS_GROUP_COMMANDS[originalGroupViewColumn - 1]
         );
       }
     } else {
